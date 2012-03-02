@@ -1,4 +1,7 @@
 #!/usr/bin/python
+# All rights to this work waived under the Creative Commons Zero Waiver
+# (CC0, http://creativecommons.org/publicdomain/zero/1.0/).
+
 import mwclient
 import ConfigParser
 import re
