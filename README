@@ -1,0 +1,12 @@
+Commons fair use upload bot re-uploads files that are deleted on
+Commons to projects where they are in use, if those projects accept
+non-free files. For details see:
+
+https://commons.wikimedia.org/wiki/User:Commons_fair_use_upload_bot
+
+It requires a file called Commons_fair_use_upload_bot.credentials.txt
+of the form:
+
+[mwclient]
+username=Bot username
+password=Bot password
