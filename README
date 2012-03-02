@@ -10,3 +10,7 @@ of the form:
 [mwclient]
 username=Bot username
 password=Bot password
+
+On Toolserver, I run it regularly with the following cronie line:
+
+46 * * * * cronsub -s Commons_fair_use_upload_bot $HOME/Commons_fair_use_upload_bot/Commons_fair_use_upload_bot.py >> $HOME/Commons_fair_use_upload_bot/Commons_fair_use_upload_bot.out
