@@ -4,8 +4,15 @@ non-free files. For details see:
 
 https://commons.wikimedia.org/wiki/User:Commons_fair_use_upload_bot
 
-It requires a file called Commons_fair_use_upload_bot.credentials.txt
-of the form:
+Requires mwclient (tested with 0.6.5), available from:
+
+http://sourceforge.net/projects/mwclient/
+
+Add the directory containing the unpacked mwclient directory to your
+PYTHONPATH.
+
+It also requires a credentials file called
+Commons_fair_use_upload_bot.credentials.txt of the form:
 
 [mwclient]
 username=Bot username
@@ -13,4 +20,4 @@ password=Bot password
 
 On Toolserver, I run it regularly with the following cronie line:
 
-46 * * * * cronsub -s Commons_fair_use_upload_bot $HOME/Commons_fair_use_upload_bot/Commons_fair_use_upload_bot.py >> $HOME/Commons_fair_use_upload_bot/Commons_fair_use_upload_bot.out
+46 * * * * cronsub -s Commons_fair_use_upload_bot PYTHONPATH=$HOME $HOME/Commons_fair_use_upload_bot/Commons_fair_use_upload_bot.py >> $HOME/Commons_fair_use_upload_bot/Commons_fair_use_upload_bot.out
