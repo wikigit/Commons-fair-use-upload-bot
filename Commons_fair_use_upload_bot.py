@@ -102,6 +102,14 @@ def get_local_tags(sitename, historyinfo):
             desc += "{{Non-free reduce}}\n"
     return desc
 
+def get_local_tags_pd_us(sitename, historyinfo):
+    desc = ''
+    if (sitename == 'en.wikipedia.org'):
+        desc += "{{PD-US-1923-abroad}}\n"
+    else:
+        desc += "{{PD-US}}\n"
+    return desc
+
 def get_notification(sitename, filepage):
     lang = str.split(sitename, '.')[0]
     if lang == 'en':
@@ -152,7 +160,9 @@ for filepage in category:
         myprint('No Fair use delete tag found for ' + filepage.name)
         continue
     reason = get_template_arg('Fair use delete', filedescription)
-    filedescription = remove_template('Fair use delete', filedescription)
+
+    for s in ['Fair use delete', 'Delete', 'delete', 'Copyvio', 'copyvio']:
+        filedescription = remove_template(s, filedescription)
 
     taguser = get_user_who_added_template('Fair use delete', filepage)
     if not is_commons_admin(taguser):
@@ -227,75 +237,79 @@ for filepage in category:
         myprint("New file page:\n" + filedescription)
     myprint('Done.')
 
-myprint('Run completed at ' + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "\n")
-exit()
-
 category = sitecommons.Pages['Category:Images in the public domain in the United States but not the source country']
 for filepage in category:
-    print filepage.name
+    if filepage.namespace != 6:
+        continue
+    myprint(filepage.name)
+    sys.stdout.flush()
     download_to_file(filepage, '/tmp/downloadedfile')
     filedescription = filepage.edit()
-    if not re.search(r'{{PD-US-1923-abroad-delete}}', filedescription, re.IGNORECASE):
-        print 'No {{PD-US-1923-abroad-delete}} tag found for ' + filepage.name
+    if not contains_template('PD-US-1923-abroad-delete', filedescription):
+        myprint('No PD-US-1923-abroad-delete tag found for ' + filepage.name)
         continue
-    m = re.search(r'{{PD-US-1923-abroad-delete}}', filedescription, re.IGNORECASE)
-    filedescription = re.sub(r'(?i){{PD-US-1923-abroad-delete}}\s*', '', filedescription)
-    filedescription = re.sub(r'(?i){{PD-US}}\s*', '', filedescription)
-    filedescription = re.sub(r'(?i){{PD-1923}}\s*', '', filedescription)
-    filedescription = re.sub(r'(?i){{PD-US-1923}}\s*', '', filedescription)
-    filedescription = re.sub(r'(?i){{PD-pre-1923}}\s*', '', filedescription)
-    filedescription = re.sub(r'(?i){{PD-pre1923}}\s*', '', filedescription)
+    reason = get_template_arg('PD-US-1923-abroad-delete', filedescription)
 
-    newdesc = "{{PD-US-1923-abroad}}\n\n" + filedescription
-    # TODO: localize this
-    newdesc += "\n\n== Wikimedia Commons file description page history ==\n"
-    taguser = "?"
-    for revision in filepage.revisions(prop = 'timestamp|user|comment|content'):
-        if taguser == '?' and not re.search(r'{{PD-US-1923-abroad-delete}}\s*', revision['*'], re.IGNORECASE):
-            taguser = prevuser
-        newdesc += "* " + format_time(revision['timestamp']) + " [[:commons:User:" + revision['user'] + "|" + revision['user'] + "]] ''<nowiki>" + revision['comment'] + "</nowiki>''\n"
-        prevuser = revision['user']
+    for s in ['PD-US-1923-abroad-delete', 'PD-US', 'PD-1923', 'PD-US-1923', 'PD-pre-1923', 'PD-pre1923', 'Delete', 'delete', 'Copyvio', 'copyvio']:
+        filedescription = remove_template(s, filedescription)
 
-    # No API to determine if a user is an administrator, use urllib
+    taguser = get_user_who_added_template('PD-US-1923-abroad-delete', filepage)
     if not is_commons_admin(taguser):
-        print 'Request was made by non-admin user "' + taguser + '" for ' + filepage.name
+        myprint('Request was made by non-admin user "' + taguser.encode('ascii', 'ignore') + '" for ' + filepage.name + ', replacing with {{Request fair use delete}}')
+        filedescription = get_request_fair_use_template(reason) + filedescription
+        if not dry_run:
+            filepage.save(filedescription, summary = '{{tl|PD-US-1923-abroad-delete}} tag must be placed by an admin, changing to {{tl|Request fair use delete}}')
+        else:
+            myprint("New file description:\n" + filedescription)
         continue
-    print 'Tag added by administrator ' + taguser
+    myprint('Tag added by administrator ' + taguser)
 
-    # TODO: localize this
-    newdesc += "\n== Wikimedia Commons upload log ==\n"
-    width = -1
-    height = -1
-    for imagehistoryentry in filepage.imagehistory():
-        if width == -1:
-            width = imagehistoryentry['width']
-            height = imagehistoryentry['height']
-        # TODO: localize this
-        newdesc += "* " + format_time(imagehistoryentry['timestamp']) + " [[:commons:User:" + imagehistoryentry['user'] + "|" + imagehistoryentry['user'] + "]] " + str(imagehistoryentry['width']) + "&times;" + str(imagehistoryentry['height']) + " (" + str(imagehistoryentry['size']) + " bytes) ''<nowiki>" + imagehistoryentry['comment'] + "</nowiki>''\n"
-    newdesc += "__NOTOC__\n"
+    historyinfo = filepage.imagehistory().next()
 
-    uploaded_sites = ''
+    #site = mwclient.Site('et.wikipedia.org')
+    #site.login(username, password)
+    #filepagelocal = site.Images[filepage.page_title]
+    #if len(list(filepagelocal.imageusage())) > 0:
+        #myprint('Skipping (User:Commons fair use upload bot]] does not yet have upload privileges on etwiki)')
+        #continue
+
+    uploaded_sites = []
     for sitename in pd_us_wikis:
         site = mwclient.Site(sitename)
         site.login(username, password)
 
-        filepagelocal = site.Pages[filepage.name]
+        filepagelocal = site.Images[filepage.page_title]
+        if len(list(filepagelocal.imageusage())) == 0:
+            continue
 
-        if uploaded_sites:
-            uploaded_sites += ', '
-        uploaded_sites += sitename
-
-        newfilename = re.sub(r'^File:(.*)\.([^.]*)$', r'\1 - from Commons.\2', filepage.name)
-        print 'Uploading /tmp/downloadedfile to ' + newfilename
-        newdesclocal = newdesc
-        site.upload(open('/tmp/downloadedfile'), newfilename, newdesclocal, ignore=True)
-        # We upload at a new name and redirect to get around permission limitations on some wikis
+        uploaded_sites.append(sitename)
+        newdesc = get_local_tags_pd_us(sitename, historyinfo) + \
+                  filedescription + \
+                  describe_file_history(sitename, filepage) + \
+                  describe_upload_log(sitename, filepage) + \
+                  "__NOTOC__\n"
+        newfilename = append_to_filename(' - from Commons', filepage.name)
+        myprint('Uploading /tmp/downloadedfile to ' + newfilename)
+        sys.stdout.flush()
+        if not dry_run:
+            site.upload(open('/tmp/downloadedfile'), newfilename, newdesc, ignore=True)
+        # We upload at a new name and redirect to get around permission limitations on some (all?) wikis
         # which prevent uploading over files still present at Commons.
-        filepagelocal.save('#REDIRECT[[File:' + newfilename + ']]', summary = 'Bot creating image redirect to local re-upload of image being deleted at Commons')
+        if not dry_run:
+            filepagelocal.save('#REDIRECT[[File:' + newfilename + ']]', summary = get_install_redirect_summary(sitename))
 
-    print 'Marking file for speedy deletion...'
-    if uploaded_sites:
-        reason = "Copies uploaded to " + uploaded_sites + " as public domain in the United States only."
-    filedescription = "{{speedydelete|" + reason + "}}\n\n" + filedescription
-    filepage.save(filedescription, summary = 'Finished uploading as public domain in the United States only to local projects, marking for speedy deletion')
-    print 'Done.'
+    myprint('Marking file for speedy deletion...')
+    sys.stdout.flush()
+    speedyreason = reason if reason else 'Marked for deletion.'
+    if not re.search(r'\.$', speedyreason):
+        speedyreason += '.'
+    if len(uploaded_sites) > 0:
+        speedyreason += " Copies uploaded to " + str.join(', ', uploaded_sites) + " as public domain in US but not source country."
+    filedescription = "{{speedydelete|" + speedyreason + "}}\n\n" + filedescription
+    if not dry_run:
+        filepage.save(filedescription, summary = 'Finished uploading public-domain-in-US-only image to local projects, marking for speedy deletion')
+    else:
+        myprint("New file page:\n" + filedescription)
+    myprint('Done.')
+
+myprint('Run completed at ' + time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + "\n")
